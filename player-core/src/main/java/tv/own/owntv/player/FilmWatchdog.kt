@@ -8,6 +8,23 @@ package tv.own.owntv.player
  */
 internal class FilmWatchdog {
 
+    companion object {
+        /** Stage 1 open timeout for ordinary loads (upstream value, unchanged). */
+        const val OPEN_TIMEOUT_MS = 10_000L
+        /**
+         * Stage 1 open timeout for loads served by a local drive proxy.
+         *
+         * Fork-only deviation from upstream (owntv-catvod batch 7): a spider's drive proxy
+         * (`http://127.0.0.1:667x/proxy/play/...`) serves large MP4s whose moov atom sits at
+         * the file tail, and the proxy fetches that tail from the cloud drive on demand — so
+         * 10 s is regularly not enough (observed recoveries took up to ~90 s). Upstream's
+         * "ten seconds without FILE_LOADED is a dead end" does not hold for this path, and a
+         * hard reset at 10 s just restarts the same slow fetch from byte 0. Remote URLs keep
+         * the 10 s timeout, so genuinely stuck loads still fail fast.
+         */
+        const val OPEN_TIMEOUT_LOCAL_PROXY_MS = 90_000L
+    }
+
     /** What the player knows on this tick. */
     data class Tick(
         val now: Long,
@@ -27,6 +44,8 @@ internal class FilmWatchdog {
         val archive: Boolean,
         val triedFrozenReset: Boolean,
         val triedOpenReset: Boolean,
+        /** The load URL is served by a local drive proxy — Stage 1 gets the long window. */
+        val isLocalProxy: Boolean = false,
     )
 
     enum class Step {
@@ -80,7 +99,10 @@ internal class FilmWatchdog {
         // bitrate — stage 2's and stage 3's signature. Only stand down once audio is demonstrably progressing.
         if (t.fileLoaded && t.elapsedMs > 5_000 && t.positionMs > 0 && t.noVideoTrack) return Step.NO_VIDEO_TRACK
         if (!t.fileLoaded && t.sessionRefused) return Step.SESSION_REFUSED
-        if (!t.fileLoaded && t.elapsedMs > 10_000) return if (!t.triedOpenReset) Step.OPEN_RESET else Step.OPEN_AGAIN
+        // Fork-only (owntv-catvod batch 7): a local-proxy load gets 90 s before Stage 1
+        // fires; everything else keeps the upstream 10 s. See OPEN_TIMEOUT_LOCAL_PROXY_MS.
+        val openTimeoutMs = if (t.isLocalProxy) OPEN_TIMEOUT_LOCAL_PROXY_MS else OPEN_TIMEOUT_MS
+        if (!t.fileLoaded && t.elapsedMs > openTimeoutMs) return if (!t.triedOpenReset) Step.OPEN_RESET else Step.OPEN_AGAIN
         if (t.fileLoaded && t.elapsedMs > 6_000 && t.decoderHadTime && !bitrateKnown()) return Step.LOADED_NO_METADATA
         if (t.fileLoaded && t.elapsedMs > 7_000 && t.decoderHadTime) return Step.NO_FRAME
         return Step.WAIT

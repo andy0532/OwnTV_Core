@@ -3168,6 +3168,15 @@ class OwnTVPlayer(
                     if (gen != loadGeneration || isLiveContent) return@launch
                     val now = android.os.SystemClock.elapsedRealtime()
                     val elapsed = now - load.loadStartTime
+                    // Fork-only (owntv-catvod batch 7): a load served by a local drive proxy
+                    // (spider `http://127.0.0.1:667x/proxy/play/...`) may need far longer than
+                    // 10 s for the demuxer to open a large moov-at-tail MP4, so the watchdog
+                    // gives it a 90 s Stage 1 window instead of resetting at 10 s. The same
+                    // `TimeshiftServer.isLocal` predicate already used for the mpv proxy
+                    // (below) identifies these URLs.
+                    val isLocalProxy = TimeshiftServer.isLocal(currentUrl)
+                    val openTimeoutMs = if (isLocalProxy) FilmWatchdog.OPEN_TIMEOUT_LOCAL_PROXY_MS
+                        else FilmWatchdog.OPEN_TIMEOUT_MS
                     val tick = FilmWatchdog.Tick(
                         now = now,
                         elapsedMs = elapsed,
@@ -3186,6 +3195,7 @@ class OwnTVPlayer(
                         archive = item.archiveThisItem,
                         triedFrozenReset = item.triedFrozenReset,
                         triedOpenReset = item.triedOpenReset,
+                        isLocalProxy = isLocalProxy,
                     )
                     // Read off-thread: this loop runs on the main scope, and a blocking JNI read
                     // per tick is exactly what the threading rule at the top of this file forbids.
@@ -3237,7 +3247,7 @@ class OwnTVPlayer(
                             // episode's connection slot — destroying mpv aborts the stuck request and the
                             // retry then opens cleanly. Only a second hang shows the error.
                             item.triedOpenReset = true
-                            android.util.Log.w(TAG, "watchdog T_OPEN — no FILE_LOADED after ${elapsed}ms, silent hard-reset + retry")
+                            android.util.Log.w(TAG, "watchdog T_OPEN — no FILE_LOADED after ${elapsed}ms (localProxy=$isLocalProxy, openTimeoutMs=${openTimeoutMs}ms), silent hard-reset + retry")
                             val url = currentUrl
                             val seekMs = load.pendingSeekMs
                             val archive = item.archiveThisItem
@@ -3262,10 +3272,10 @@ class OwnTVPlayer(
                             // in an HTTP read the panel is never going to answer, and a one-connection provider
                             // would refuse ExoPlayer's open while mpv still holds the slot.
                             if (item.archiveThisItem && fallbackToExoVod(PlaybackFailure.MpvOpenDecode, mpvStuck = true)) {
-                                android.util.Log.w(TAG, "watchdog T_OPEN — archive never opened on mpv after ${elapsed}ms, handing to ExoPlayer")
+                                android.util.Log.w(TAG, "watchdog T_OPEN — archive never opened on mpv after ${elapsed}ms (localProxy=$isLocalProxy, openTimeoutMs=${openTimeoutMs}ms), handing to ExoPlayer")
                                 return@launch
                             }
-                            android.util.Log.w(TAG, "watchdog T_OPEN — no FILE_LOADED after ${elapsed}ms, HARD-RESETTING mpv")
+                            android.util.Log.w(TAG, "watchdog T_OPEN — no FILE_LOADED after ${elapsed}ms (localProxy=$isLocalProxy, openTimeoutMs=${openTimeoutMs}ms), HARD-RESETTING mpv")
                             triggerHardReset()
                             return@launch
                         }
