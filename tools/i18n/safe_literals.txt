@@ -6205,9 +6205,9 @@
 1	log	player-core/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	watchdog MOOV-AT-END — FILE_LOADED but no bitrate/height after ${elapsed}ms, aborting (server lacks Range support)
 1	log	player-core/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	watchdog T_DECODE — FILE_LOADED but no frame after ${elapsed}ms, HARD-RESETTING mpv
 1	log	player-core/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	watchdog T_DECODE — archive produced no frame after ${elapsed}ms
-1	log	player-core/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	watchdog T_OPEN — archive never opened on mpv after ${elapsed}ms, handing to ExoPlayer
-1	log	player-core/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	watchdog T_OPEN — no FILE_LOADED after ${elapsed}ms, HARD-RESETTING mpv
-1	log	player-core/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	watchdog T_OPEN — no FILE_LOADED after ${elapsed}ms, silent hard-reset + retry
+1	log	player-core/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	watchdog T_OPEN — archive never opened on mpv after ${elapsed}ms (localProxy=$isLocalProxy, openTimeoutMs=${openTimeoutMs}ms), handing to ExoPlayer
+1	log	player-core/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	watchdog T_OPEN — no FILE_LOADED after ${elapsed}ms (localProxy=$isLocalProxy, openTimeoutMs=${openTimeoutMs}ms), HARD-RESETTING mpv
+1	log	player-core/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	watchdog T_OPEN — no FILE_LOADED after ${elapsed}ms (localProxy=$isLocalProxy, openTimeoutMs=${openTimeoutMs}ms), silent hard-reset + retry
 1	log	player-core/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	watchdog — archive froze twice on mpv, handing to ExoPlayer
 1	log	player-core/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	watchdog — archive loaded but never produced a picture ('$raw')
 1	log	player-core/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	watchdog — frozen on the first frame for ${watchdog.stillForMs}ms, silent hard-reset + retry
