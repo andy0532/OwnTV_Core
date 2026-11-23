@@ -87,12 +87,22 @@ class WeatherRepository(
         val parts = m.split(",").mapNotNull { it.trim().toDoubleOrNull() }
         if (parts.size == 2) return Triple(parts[0], parts[1], m)
         // Else geocode a city name via Open-Meteo's free geocoding API.
+        // Batch 13 (weather): Chinese names failed because the search
+        // used language=en, which only matches English names (pinyin
+        // worked). Try language=zh first, fall back to language=en when
+        // zh finds nothing, so both Chinese and English names resolve.
         val name = java.net.URLEncoder.encode(m, "UTF-8")
-        val url = "https://geocoding-api.open-meteo.com/v1/search?name=$name&count=1&language=en&format=json"
+        val hit = geocode(name, "zh") ?: geocode(name, "en")
+            ?: return error("geo no match")
+        return Triple(hit.getDouble("latitude"), hit.getDouble("longitude"), hit.optString("name", m))
+    }
+
+    /** One geocoding attempt in the given language; null when no match. */
+    private fun geocode(name: String, language: String): JSONObject? {
+        val url = "https://geocoding-api.open-meteo.com/v1/search?name=$name&count=1&language=$language&format=json"
         val req = Request.Builder().url(url).build()
         val json = http.newCall(req).execute().use { it.body.string() }
-        val hit = JSONObject(json).optJSONArray("results")?.optJSONObject(0) ?: return error("geo no match")
-        return Triple(hit.getDouble("latitude"), hit.getDouble("longitude"), hit.optString("name", m))
+        return JSONObject(json).optJSONArray("results")?.optJSONObject(0)
     }
 
     private fun error(msg: String): Nothing = throw IllegalStateException("Weather fetch failed: $msg")
