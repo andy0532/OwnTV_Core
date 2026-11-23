@@ -5216,9 +5216,10 @@
 1	log	core/src/main/java/tv/own/owntv/core/weather/WeatherRepository.kt	Weather fetch failed: $msg
 1	log	core/src/main/java/tv/own/owntv/core/weather/WeatherRepository.kt	city
 1	log	core/src/main/java/tv/own/owntv/core/weather/WeatherRepository.kt	current
+1	log	core/src/main/java/tv/own/owntv/core/weather/WeatherRepository.kt	en
 1	log	core/src/main/java/tv/own/owntv/core/weather/WeatherRepository.kt	geo no match
 1	log	core/src/main/java/tv/own/owntv/core/weather/WeatherRepository.kt	https://api.open-meteo.com/v1/forecast
-1	log	core/src/main/java/tv/own/owntv/core/weather/WeatherRepository.kt	https://geocoding-api.open-meteo.com/v1/search?name=$name&count=1&language=en&format=json
+1	log	core/src/main/java/tv/own/owntv/core/weather/WeatherRepository.kt	https://geocoding-api.open-meteo.com/v1/search?name=$name&count=1&language=$language&format=json
 1	log	core/src/main/java/tv/own/owntv/core/weather/WeatherRepository.kt	https://ipapi.co/json/
 1	log	core/src/main/java/tv/own/owntv/core/weather/WeatherRepository.kt	is_day
 2	log	core/src/main/java/tv/own/owntv/core/weather/WeatherRepository.kt	latitude
@@ -5228,6 +5229,7 @@
 1	log	core/src/main/java/tv/own/owntv/core/weather/WeatherRepository.kt	results
 1	log	core/src/main/java/tv/own/owntv/core/weather/WeatherRepository.kt	temperature_2m
 1	log	core/src/main/java/tv/own/owntv/core/weather/WeatherRepository.kt	weather_code
+1	log	core/src/main/java/tv/own/owntv/core/weather/WeatherRepository.kt	zh
 1	uri	player-core/src/main/java/tv/own/owntv/core/drm/DrmMediaItem.kt	data:application/json;base64,
 1	json	player-core/src/main/java/tv/own/owntv/core/drm/DrmMediaItem.kt	k
 1	json	player-core/src/main/java/tv/own/owntv/core/drm/DrmMediaItem.kt	keys
