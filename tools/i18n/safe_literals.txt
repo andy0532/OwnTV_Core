@@ -5376,6 +5376,7 @@
 1	log	player-core/src/main/java/tv/own/owntv/player/ExoSubtitleEngine.kt	${when (hardware) { true -> "hardware"; false -> "software"; null -> "kind unknown" }}
 1	log	player-core/src/main/java/tv/own/owntv/player/ExoSubtitleEngine.kt	(decodedDrops=${currentDroppedFrames(player) - dropsBaseline} format=${player?.videoFormat?.sampleMimeType})
 1	log	player-core/src/main/java/tv/own/owntv/player/ExoSubtitleEngine.kt	, requested=${if (softwarePreferred) "software" else "hardware"})
+1	url	player-core/src/main/java/tv/own/owntv/player/ExoSubtitleEngine.kt	/proxy/play/
 1	technical	player-core/src/main/java/tv/own/owntv/player/ExoSubtitleEngine.kt	AV1
 1	technical	player-core/src/main/java/tv/own/owntv/player/ExoSubtitleEngine.kt	ExoPlayer
 1	log	player-core/src/main/java/tv/own/owntv/player/ExoSubtitleEngine.kt	ExoPlayer error: ${error.errorCodeName}
@@ -5401,11 +5402,13 @@
 1	log	player-core/src/main/java/tv/own/owntv/player/ExoSubtitleEngine.kt	film_buffer max=${maxBufferMs}ms bytes=$builtTargetBytes bitrateHint=${lastFilmBitrateBps ?: -1} heapClassMb=$heapClassMb
 3	technical	player-core/src/main/java/tv/own/owntv/player/ExoSubtitleEngine.kt	hardware
 1	technical	player-core/src/main/java/tv/own/owntv/player/ExoSubtitleEngine.kt	hevc
+1	url	player-core/src/main/java/tv/own/owntv/player/ExoSubtitleEngine.kt	http://localhost:
 1	technical	player-core/src/main/java/tv/own/owntv/player/ExoSubtitleEngine.kt	kind unknown
 1	technical	player-core/src/main/java/tv/own/owntv/player/ExoSubtitleEngine.kt	mp4v-es
 1	technical	player-core/src/main/java/tv/own/owntv/player/ExoSubtitleEngine.kt	mpeg2
 1	log	player-core/src/main/java/tv/own/owntv/player/ExoSubtitleEngine.kt	no audio track ExoPlayer can play ($formats) — handing the film back
 1	log	player-core/src/main/java/tv/own/owntv/player/ExoSubtitleEngine.kt	no text track matches the picked subtitle (index=$pendingSubTypeIndex lang=$pendingSubLang) — leaving subtitles off
+1	log	player-core/src/main/java/tv/own/owntv/player/ExoSubtitleEngine.kt	no video format after ${noVideoTimeoutMs()}ms — no data yet, not a decoder fault;
 1	log	player-core/src/main/java/tv/own/owntv/player/ExoSubtitleEngine.kt	no video frame after ${noVideoTimeoutMs()}ms — falling back
 1	log	player-core/src/main/java/tv/own/owntv/player/ExoSubtitleEngine.kt	no video track in this file — audio-only, no-video watchdog disarmed
 1	technical	player-core/src/main/java/tv/own/owntv/player/ExoSubtitleEngine.kt	off
@@ -5417,12 +5420,14 @@
 1	technical	player-core/src/main/java/tv/own/owntv/player/ExoSubtitleEngine.kt	software rescue: no frame on the hardware decoder, restarting in software decode
 1	technical	player-core/src/main/java/tv/own/owntv/player/ExoSubtitleEngine.kt	ssa
 1	technical	player-core/src/main/java/tv/own/owntv/player/ExoSubtitleEngine.kt	stereo
+1	log	player-core/src/main/java/tv/own/owntv/player/ExoSubtitleEngine.kt	still no video format after the grace window — stream unavailable, no software rescue
 1	technical	player-core/src/main/java/tv/own/owntv/player/ExoSubtitleEngine.kt	subshift_
 1	log	player-core/src/main/java/tv/own/owntv/player/ExoSubtitleEngine.kt	video decoder: $decoderName (init ${initializationDurationMs}ms,
 1	log	player-core/src/main/java/tv/own/owntv/player/ExoSubtitleEngine.kt	video fps measured from timestamps: $fps
 1	log	player-core/src/main/java/tv/own/owntv/player/ExoSubtitleEngine.kt	video input format: ${format.sampleMimeType} ${format.width}x${format.height} fps=${format.frameRate}
 1	technical	player-core/src/main/java/tv/own/owntv/player/ExoSubtitleEngine.kt	vp9
 1	technical	player-core/src/main/java/tv/own/owntv/player/ExoSubtitleEngine.kt	vtt
+1	log	player-core/src/main/java/tv/own/owntv/player/ExoSubtitleEngine.kt	waiting ${NO_VIDEO_TIMEOUT_MS}ms more (localProxy=$localProxyItem)
 1	technical	player-core/src/main/java/tv/own/owntv/player/ExoSubtitleEngine.kt	webvtt
 1	technical	player-core/src/main/java/tv/own/owntv/player/ExoSubtitleEngine.kt	x-vnd.on2.vp9
 1	log	player-core/src/main/java/tv/own/owntv/player/HeroPreviewEngine.kt	Hero preview error: ${error.errorCodeName}

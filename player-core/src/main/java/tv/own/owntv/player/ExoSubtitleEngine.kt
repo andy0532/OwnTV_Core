@@ -24,6 +24,7 @@ import kotlinx.coroutines.withContext
 import tv.own.owntv.core.network.HttpClient
 import tv.own.owntv.core.drm.toMediaDrmConfiguration
 import tv.own.owntv.core.network.StreamHeaders
+import tv.own.owntv.core.timeshift.TimeshiftServer
 import java.util.Locale
 import tv.own.owntv.core.player.PlayerBudget
 import tv.own.owntv.core.player.SurroundMode
@@ -130,6 +131,29 @@ class ExoSubtitleEngine(
     @Volatile private var audioOnly = false
     private val noVideoWatchdog = NoFrameWatchdog {
         if (!firstFrameSeen && hasVideoTrack && !audioOnly) {
+            // 5.2.1.25 (fork-only): no video FORMAT at all means no video data has reached the player yet
+            // (a slow open, a drive proxy still fetching the file's index) — not a decoder that took a
+            // format it cannot render. A software decoder cannot fix missing data, and restarting
+            // re-opens the same slow fetch from the start (seen on device: format=null at 12 s, a
+            // software restart, the first frame at ~37 s). So: one grace window of the ordinary budget,
+            // then hand the item on as unavailable — never a software rescue, never a loop (the grace is
+            // spent once per item, reset in [start]). With a format and still no frame, the software
+            // rescue / AudioNoVideo below run exactly as before.
+            if (player?.videoFormat == null) {
+                if (!noFormatGraceUsed) {
+                    noFormatGraceUsed = true
+                    android.util.Log.w(
+                        TAG,
+                        "no video format after ${noVideoTimeoutMs()}ms — no data yet, not a decoder fault; " +
+                            "waiting ${NO_VIDEO_TIMEOUT_MS}ms more (localProxy=$localProxyItem)",
+                    )
+                    armNoFormatGrace()
+                    return@NoFrameWatchdog
+                }
+                android.util.Log.w(TAG, "still no video format after the grace window — stream unavailable, no software rescue")
+                callbacks.onError(PlaybackFailure.StreamUnavailable(false))
+                return@NoFrameWatchdog
+            }
             android.util.Log.w(
                 TAG,
                 "no video frame after ${noVideoTimeoutMs()}ms — falling back " +
@@ -173,9 +197,29 @@ class ExoSubtitleEngine(
 
     /** How long to wait for the first frame. A catch-up archive gets far longer: it decodes in SOFTWARE
      *  and starts mid-GOP, so the decoder must chew through inter-frames until the next keyframe before
-     *  it can render anything — on a low-spec box that can comfortably exceed the normal 8 s budget. */
-    private fun noVideoTimeoutMs(): Long =
-        if (softwarePreferred) NO_VIDEO_TIMEOUT_SOFTWARE_MS else NO_VIDEO_TIMEOUT_MS
+     *  it can render anything — on a low-spec box that can comfortably exceed the normal 8 s budget.
+     *  5.2.1.25 (fork-only): a spider drive-proxy load ([isLocalDriveProxy]) gets the same 90 s the mpv
+     *  path's FilmWatchdog gives it ([FilmWatchdog.OPEN_TIMEOUT_LOCAL_PROXY_MS]): the proxy fetches a
+     *  large file's index from the cloud drive on demand, so 12 s is regularly inside the normal open.
+     *  It is checked first, so a proxied item decoding in software also gets 90 s (the wait there is the
+     *  fetch, not the decoder). Every other item keeps 12 s, and software / mid-GOP keeps 25 s. */
+    private fun noVideoTimeoutMs(): Long = when {
+        localProxyItem -> FilmWatchdog.OPEN_TIMEOUT_LOCAL_PROXY_MS
+        softwarePreferred -> NO_VIDEO_TIMEOUT_SOFTWARE_MS
+        else -> NO_VIDEO_TIMEOUT_MS
+    }
+
+    /** 5.2.1.25: the one no-format grace window (see [noVideoWatchdog]) — the ordinary 12 s budget. */
+    private fun armNoFormatGrace() = noVideoWatchdog.arm(NO_VIDEO_TIMEOUT_MS)
+
+    /**
+     * 5.2.1.25 (fork-only): a load served by a spider's local drive proxy
+     * (`http://127.0.0.1:667x/proxy/play/...`, or the same on localhost). The loopback test is the one
+     * the mpv path's watchdog already uses ([TimeshiftServer.isLocal], OwnTVPlayer's Stage 1); the
+     * path test keeps the timeshift server's own loopback buffers (also 127.0.0.1) out of it.
+     */
+    private fun isLocalDriveProxy(url: String): Boolean =
+        (TimeshiftServer.isLocal(url) || url.startsWith(LOCALHOST_URL_PREFIX)) && url.contains(DRIVE_PROXY_PATH)
     // Maps the audio-track id the HUD selects (== its ordinal in the list we publish) → the ExoPlayer
     // track group + index to override. Rebuilt whenever the track list changes.
     private var audioSelections: List<AudioSel> = emptyList()
@@ -386,6 +430,9 @@ class ExoSubtitleEngine(
         // selector puts software first and keeps hardware as a backstop, so this can only add a route.
         softwarePreferred = preferSoftware || !hwDecodingEnabled
         isArchiveItem = isArchive
+        // 5.2.1.25: before the first-frame deadline is armed below (it reads both).
+        localProxyItem = isLocalDriveProxy(url)
+        noFormatGraceUsed = false
         this.surface = surface
         fallbackMode = fallback
         pendingSubLang = subLang
@@ -581,6 +628,10 @@ class ExoSubtitleEngine(
      *  the renderer factory is fixed at construction, so a change forces a rebuild in [start]. */
     private var softwarePreferred = false
     private var isArchiveItem = false
+    /** 5.2.1.25: this item is a local drive-proxy load — see [isLocalDriveProxy] / [noVideoTimeoutMs]. */
+    private var localProxyItem = false
+    /** 5.2.1.25: the no-format grace window has been spent for this item — see [noVideoWatchdog]. */
+    private var noFormatGraceUsed = false
     /** Mirrors Settings → Picture → Hardware decoding, pushed in by [OwnTVPlayer]. */
     @Volatile var hwDecodingEnabled = true
     /** Mirrors Settings → Picture → Software decoding above 1080p, pushed in by [OwnTVPlayer]. */
@@ -1295,6 +1346,10 @@ class ExoSubtitleEngine(
         const val NO_VIDEO_TIMEOUT_MS = 12_000L
         /** Mid-GOP + software decode needs a much longer first-frame budget — see [noVideoTimeoutMs]. */
         const val NO_VIDEO_TIMEOUT_SOFTWARE_MS = 25_000L
+        /** 5.2.1.25: the loopback address spelled by name — see [isLocalDriveProxy]. */
+        const val LOCALHOST_URL_PREFIX = "http://localhost:"
+        /** 5.2.1.25: the path a spider's drive proxy serves files under — see [isLocalDriveProxy]. */
+        const val DRIVE_PROXY_PATH = "/proxy/play/"
 
         /** Failures a different (software) decoder can plausibly fix — see the software rescue in
          *  `onPlayerError`. Everything else (network, source, DRM, renderer/timeout) goes to mpv. */

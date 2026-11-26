@@ -25,6 +25,12 @@ import android.os.Looper
  * - **25 s, armed at load, software + mid-GOP** — [ExoSubtitleEngine] for a catch-up archive. It
  *   decodes in software AND starts mid-GOP, so the decoder must chew inter-frames up to the next
  *   keyframe before it can render. This is not an inconsistency to be unified away.
+ * - **90 s, armed at load, local drive proxy** (fork-only, 5.2.1.25) — [ExoSubtitleEngine] for a
+ *   spider's `http://127.0.0.1:…/proxy/play/…` load, the same 90 s the mpv path's FilmWatchdog gives it
+ *   (`FilmWatchdog.OPEN_TIMEOUT_LOCAL_PROXY_MS`): the proxy fetches a big file's index from the cloud
+ *   drive on demand, so the open alone can outlast 12 s. And in that engine an expiry with no video
+ *   format at all (no video data yet) is not a decoder fault: it gets one 12 s grace window and then
+ *   fails over as unavailable, without the software rescue.
  * - **8 s, armed at STATE_READY** — `LivePreviewEngine`'s "audio plays, no picture" check. It runs
  *   inside that engine's existing polled health watchdog rather than here: the poll is shared with
  *   four other checks and is device-tiered, so giving this one its own timer would add back a
