@@ -129,7 +129,7 @@ class ExoSubtitleEngine(
     private var hasVideoTrack = true
     // Audio Mode: the video track is deselected, so no frame can ever arrive — see [setVideoTrackDisabled].
     @Volatile private var audioOnly = false
-    private val noVideoWatchdog = NoFrameWatchdog {
+    private val noVideoWatchdog: NoFrameWatchdog = NoFrameWatchdog {
         if (!firstFrameSeen && hasVideoTrack && !audioOnly) {
             // 5.2.1.25 (fork-only): no video FORMAT at all means no video data has reached the player yet
             // (a slow open, a drive proxy still fetching the file's index) — not a decoder that took a
@@ -210,7 +210,11 @@ class ExoSubtitleEngine(
     }
 
     /** 5.2.1.25: the one no-format grace window (see [noVideoWatchdog]) — the ordinary 12 s budget. */
-    private fun armNoFormatGrace() = noVideoWatchdog.arm(NO_VIDEO_TIMEOUT_MS)
+    // Explicit types (here and on [noVideoWatchdog]): this is called from inside the watchdog's own
+    // initialiser, so an inferred type would be recursive and fail to compile.
+    private fun armNoFormatGrace(): Unit {
+        noVideoWatchdog.arm(NO_VIDEO_TIMEOUT_MS)
+    }
 
     /**
      * 5.2.1.25 (fork-only): a load served by a spider's local drive proxy
