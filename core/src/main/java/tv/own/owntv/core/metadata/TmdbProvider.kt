@@ -254,6 +254,7 @@ class TmdbProvider(
             trailerKey = parseTrailerKey(o, preferredLang),
             logoPath = parseLogoPath(o, preferredLang),
             originalLanguage = o.optString("original_language").takeIf { it.isNotBlank() && it != "null" },
+            localPosterPath = parseLocalPosterPath(o, preferredLang),
         )
     }
 
@@ -281,6 +282,7 @@ class TmdbProvider(
             trailerKey = parseTrailerKey(o, preferredLang),
             logoPath = parseLogoPath(o, preferredLang),
             originalLanguage = o.optString("original_language").takeIf { it.isNotBlank() && it != "null" },
+            localPosterPath = parseLocalPosterPath(o, preferredLang),
         )
     }
 
@@ -322,6 +324,32 @@ class TmdbProvider(
             out += CastMember(name, path)
         }
         return out
+    }
+
+    /**
+     * OwnTV Quick 5.2.1.28: the best poster in [preferredLang] (base ISO 639-1) among the details'
+     * `images.posters` - most votes first, then the widest. Null when TMDB has none in that language, or
+     * when no language other than English is chosen: then there is nothing "local" to prefer.
+     */
+    private fun parseLocalPosterPath(details: JSONObject, preferredLang: String): String? {
+        val lang = preferredLang.takeIf { it.isNotBlank() && it != "en" } ?: return null
+        val arr = details.optJSONObject("images")?.optJSONArray("posters") ?: return null
+        var best: String? = null
+        var bestVotes = -1
+        var bestWidth = -1
+        for (i in 0 until arr.length()) {
+            val poster = arr.optJSONObject(i) ?: continue
+            if (poster.optString("iso_639_1") != lang) continue
+            val path = poster.optString("file_path").takeIf { it.isNotBlank() && it != "null" } ?: continue
+            val votes = poster.optInt("vote_count", 0)
+            val width = poster.optInt("width", 0)
+            if (votes > bestVotes || (votes == bestVotes && width > bestWidth)) {
+                best = path
+                bestVotes = votes
+                bestWidth = width
+            }
+        }
+        return best
     }
 
     private data class LogoCandidate(val path: String, val languageRank: Int, val width: Int)

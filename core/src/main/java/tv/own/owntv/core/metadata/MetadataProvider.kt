@@ -183,6 +183,12 @@ data class MovieDetails(
     val logoPath: String?,
     /** TMDB `original_language` (ISO 639-1, e.g. "ko"): what "Original language" audio plays. */
     val originalLanguage: String? = null,
+    /**
+     * OwnTV Quick 5.2.1.28: the best poster in the user's metadata language from the details' `images`
+     * (most votes, then widest); null when TMDB has none in it, or no language other than English is
+     * set. [posterPath] stays TMDB's own pick, which falls back to any language.
+     */
+    val localPosterPath: String? = null,
 )
 
 /** Per-episode TMDB details (`/tv/{id}/season/{n}/episode/{m}`). Its own still, plot, air date, rating. */
