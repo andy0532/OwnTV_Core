@@ -1301,6 +1301,16 @@ class OwnTVPlayer(
     private val _archiveEnded = kotlinx.coroutines.flow.MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val archiveEnded: kotlinx.coroutines.flow.SharedFlow<Unit> = _archiveEnded
 
+    // 5.2.1.32 (OwnTV catvod): emitted with the item's content key when a single item - no queue,
+    // not a catch-up archive - plays to its natural end. The TVBox section follows it with its own
+    // next episode or loop: each TVBox episode URL is resolved fresh (signed links expire), so it can
+    // never be a queue here. Nothing in the player acts on it; the item still simply stops.
+    private val _singleItemEnded = kotlinx.coroutines.flow.MutableSharedFlow<String>(extraBufferCapacity = 1)
+    val singleItemEnded: kotlinx.coroutines.flow.SharedFlow<String> = _singleItemEnded
+
+    /** 5.2.1.32: Settings > auto-play next, for a caller that advances on its own (TVBox). */
+    val autoPlayNextEnabled: Boolean get() = autoPlayNext
+
     // Emitted once per load when a catch-up archive that was playing stops moving — not paused by the
     // user, no END_FILE, the provider simply stopped sending (a programme still on air, opened from its
     // start, did this on the TCL). Whether live is the answer depends on the guide, so the app decides
@@ -2381,6 +2391,13 @@ class OwnTVPlayer(
         if (stopAtItemEnd) {
             stopAtItemEnd = false
             _stoppedAtItemEnd.tryEmit(Unit)
+            return
+        }
+        // 5.2.1.32: a single item with no queue and no archive stops here as it always did (both
+        // branches below returned for it), but the caller is told, whatever auto-play says - the
+        // TVBox loop works with auto-play off.
+        if (playlist.isEmpty() && !item.archiveThisItem) {
+            _singleItemEnded.tryEmit(currentMediaContentKey.orEmpty())
             return
         }
         if (!autoPlayNext || item.autoNextCancelled) return
