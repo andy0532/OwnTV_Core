@@ -22,8 +22,10 @@ object TitleNormalizer {
     // provider-ish: it contains a digit or '+', OR it is a single token (see [stripDashPrefix]).
     private val DASH_PREFIX = Regex("""^\s*([0-9A-Z][0-9A-Z+\-]*(?:\s+[0-9A-Z+\-]+)*)\s+-\s+""")
 
-    // Bracketed / parenthesised tags: [HD], (MULTI-SUB), {1080p}. Years in parens are handled separately.
-    private val BRACKET_TAG = Regex("""[\[{(][^\[\]{}()]*[\]})]""")
+    // Bracketed / parenthesised tags: [HD], (MULTI-SUB), {1080p}, plus the full-width brackets Chinese
+    // IPTV sources use for the same purpose: （国语）, 【国语中字】 — and a mixed pairing a source can
+    // produce ((国语）, （国语)). Years in parens are handled separately.
+    private val BRACKET_TAG = Regex("""[\[{(（【][^\[\]{}()（）【】]*[\]})）】]""")
 
     // Standalone quality / release markers anywhere in the title.
     private val QUALITY_MARKER = Regex(
@@ -47,6 +49,11 @@ object TitleNormalizer {
     // Case-sensitive on purpose: a title-case word like "Fr"/"Sub" is never touched, and the risky
     // real-word codes (IT, US) are deliberately excluded.
     private val TRAILING_LANG_TAG = Regex("""\s+(?:FR|EN|DE|ES|PT|NL|PL|TR|AR|RU|LAT|SUB|DUB|MULTI)$""")
+
+    // Trailing upper-case cinema-recording tag after a dash ("Tum Mere Ho - CAM", "Film - HDTS"): a bare
+    // "CAM" is not a QUALITY_MARKER because it is a real word ("Cam", "Cam Girl"), so only the
+    // dash-separated, upper-case form at the very end is treated as a tag.
+    private val TRAILING_RELEASE_TAG = Regex("""\s+[-–—]\s+(?:CAM|TS|HDTS|TC|PRE-?DVD)$""")
 
     // A 4-digit year, optionally in parens/brackets: (2021), [1999], 2015.
     private val YEAR = Regex("""[\[(]?\b(19\d{2}|20\d{2})\b[\])]?""")
@@ -78,7 +85,10 @@ object TitleNormalizer {
         // 3b. Peel trailing season/episode tails and language tags (repeatedly — "Show S01 FR"),
         //     but never down to an empty query (a title that IS just "S01E01" stays as-is).
         val beforeTails = s
-        do { prev = s; s = s.trimEnd().replace(SEASON_EPISODE_TAIL, "").replace(TRAILING_LANG_TAG, "") } while (s != prev)
+        do {
+            prev = s
+            s = stripReleaseTag(s.trimEnd().replace(SEASON_EPISODE_TAIL, "").replace(TRAILING_LANG_TAG, ""))
+        } while (s != prev)
         if (s.isBlank()) s = beforeTails
 
         // 4. Collapse separators/whitespace and trim edge junk.
@@ -89,6 +99,16 @@ object TitleNormalizer {
 
         return Normalized(s, year)
     }
+
+    /**
+     * The release-tag pattern needs a dash, and most titles have none. This runs for every
+     * title a sync writes (through the catalogue parser), and every regex call is a trip into ICU, so
+     * the cheap scan decides first.
+     */
+    private fun stripReleaseTag(s: String): String =
+        if (s.indexOfAny(DASHES) < 0) s else s.replace(TRAILING_RELEASE_TAG, "")
+
+    private val DASHES = charArrayOf('-', '–', '—')
 
     /**
      * Strip one leading "PROVIDER - " prefix when it looks provider-ish. Only strips if the matched prefix
